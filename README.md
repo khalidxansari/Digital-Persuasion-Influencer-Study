@@ -34,7 +34,7 @@ Install the following R packages if not already installed:
 
 ```r
 install.packages(c("readr", "dplyr", "ggplot2"))
-```  ← close this backtick block right here ✅
+```  
 
 ## 📊 Outputs
 
