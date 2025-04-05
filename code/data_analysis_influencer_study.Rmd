@@ -1,0 +1,141 @@
+
+---
+title: "Data Cleaning"
+output: html_document
+date: "2024-04-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load required libraries
+library(readr)
+library(dplyr)
+library(ggplot2)
+
+# Read the CSV file while suppressing column type messages
+data <- read_csv("../data/latest_data_set.csv", show_col_types = FALSE)
+
+
+
+# Check column names
+names(data)
+```
+
+```{r}
+# Count NA values in each column
+null_values <- sapply(data, function(x) sum(is.na(x)))
+print(null_values)
+```
+
+```{r}
+# Fix column name typo
+names(data)[names(data) == "influencer_inspired_travel _frequency"] <- "influencer_inspired_travel_frequency"
+
+# Replace NAs in specific columns with "Not Applicable"
+columns_to_clean <- c("Intl_students", "degree", "avg_watch_time_livestream",
+                      "watched_livestream_frequency", "purchase_frequency",
+                      "influencer_inspired_travel_frequency")
+
+for (col in columns_to_clean) {
+  data[[col]][is.na(data[[col]])] <- "Not Applicable"
+}
+
+# Check again for remaining NAs
+sapply(data[columns_to_clean], function(x) sum(is.na(x)))
+```
+
+```{r}
+# Summary and structure
+summary(data)
+str(data)
+```
+
+```{r}
+# Categorical variable summaries
+table(data$gender)
+table(data$age_group)
+table(data$occupation)
+table(data$degree)
+table(data$follow_influencers)
+table(data$purchased_product)
+```
+
+```{r}
+# Visualize Gender Distribution
+ggplot(data, aes(x = gender, fill = gender)) +
+  geom_bar(width = 0.4) +
+  labs(title = "Distribution of Gender", x = "Gender", y = "Count") +
+  scale_fill_manual(values = c(
+    "Male" = "#1b9e77", "Female" = "#d95f02", "Other" = "#7570b3",
+    "Prefer not to say" = "#e7298a", "Prefer to self-describe" = "#66a61e"
+  ))
+```
+
+```{r}
+# Age Group Distribution
+ggplot(data, aes(x = age_group, fill = age_group)) + 
+  geom_bar(width = 0.4) +
+  labs(title = "Distribution of Age Group", x = "Age Group", y = "Count") +
+  scale_fill_manual(values = c(
+    "18-24" = "#1b9e77", "25-34" = "#d95f02", "35-44" = "#7570b3",
+    "45-54" = "#e7298a", "55-64" = "#66a61e", "65+" = "#000080"
+  ))
+```
+> Visual analysis revealed that male users and individuals aged 35–44 were the most represented in the dataset. These insights suggest demographic trends in short-video platform engagement.
+
+```{r}
+# Influencer Following and Purchases
+ggplot(data, aes(x = follow_influencers, fill = purchased_product)) +
+  geom_bar(position = "dodge", width = 0.4) +
+  labs(title = "Product Purchases by Influencer Following",
+       x = "Following Influencers", y = "Count of Responses") +
+  scale_fill_manual(values = c("Yes" = "#1b9e77", "No" = "#d95f02"))
+```
+
+```{r}
+# Chi-squared test
+data$follow_influencers <- as.factor(data$follow_influencers)
+data$purchased_product <- as.factor(data$purchased_product)
+
+contingency_table <- table(data$follow_influencers, data$purchased_product)
+chi_squared_test <- chisq.test(contingency_table)
+print(chi_squared_test)
+```
+> A chi-squared test for independence revealed a significant association between following influencers and purchasing products (χ² = 127.92, df = 1, p < 0.001). This suggests that users who follow influencers are significantly more likely to make influencer-driven purchases than those who do not.
+
+```{r}
+# Emotional fulfillment vs. following influencers
+table_fulfillment <- table(data$emotional_fullfillment, data$follow_influencers)
+chisq.test(table_fulfillment)
+```
+> The chi-squared test also revealed a significant association between emotional fulfillment and following influencers (χ² = 8.80, df = 2, p = 0.012), suggesting that emotional engagement is linked to influencer interaction.
+
+
+```{r}
+# Bar plot for emotional fulfillment
+ggplot(data, aes(x = follow_influencers, fill = emotional_fullfillment)) +
+  geom_bar(position = "fill", width = 0.4) +
+  labs(title = "Emotional Fulfillment by Influencer Following",
+       x = "Follow Influencers", y = "Proportion") +
+  scale_fill_brewer(palette = "Pastel1")
+```
+
+```{r}
+# Logistic Regression
+data$follow_influencers <- ifelse(data$follow_influencers == "Yes", 1, 0)
+data$purchased_product <- ifelse(data$purchased_product == "Yes", 1, 0)
+
+data$follow_influencers <- as.factor(data$follow_influencers)
+data$purchased_product <- as.factor(data$purchased_product)
+
+logit_model <- glm(purchased_product ~ follow_influencers, family = binomial(), data = data)
+summary(logit_model)
+
+# Odds ratio
+exp(coef(logit_model))
+```
+> A binary logistic regression confirmed that following influencers significantly predicts the likelihood of purchasing a product (p < 0.001). The odds ratio (17.23) indicates that influencer-followers are over 17 times more likely to make purchases than non-followers.
+
